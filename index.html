@@ -1,0 +1,542 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>25 + 5 Clock</title>
+
+  <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #111827;
+      color: #f9fafb;
+      font-family: Arial, sans-serif;
+    }
+
+    #root {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .clock {
+      width: 100%;
+      max-width: 560px;
+      padding: 32px;
+      border: 1px solid #374151;
+      border-radius: 24px;
+      background: #1f2937;
+      box-shadow: 0 20px 55px #0005;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 6vw, 2.8rem);
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      margin: 0 0 30px;
+      color: #9ca3af;
+      font-size: 0.95rem;
+    }
+
+    .length-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 28px;
+    }
+
+    .length-box {
+      padding: 20px 12px;
+      border-radius: 16px;
+      background: #111827;
+    }
+
+    .length-box h2 {
+      margin: 0 0 18px;
+      color: #d1d5db;
+      font-size: 1rem;
+    }
+
+    .adjuster {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+
+    .adjuster button,
+    .timer-controls button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1.3rem;
+      font-weight: bold;
+      transition: transform 0.12s, background 0.15s;
+    }
+
+    .adjuster button {
+      width: 42px;
+      height: 42px;
+      background: #374151;
+      color: #fff;
+    }
+
+    .adjuster button:hover {
+      background: #4b5563;
+    }
+
+    button:active {
+      transform: scale(0.94);
+    }
+
+    button:focus-visible {
+      outline: 3px solid #a7f3d0;
+      outline-offset: 3px;
+    }
+
+    .length-value {
+      min-width: 28px;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .timer {
+      padding: 28px 16px;
+      border: 2px solid #374151;
+      border-radius: 20px;
+      background: #111827;
+    }
+
+    #timer-label {
+      margin-bottom: 10px;
+      color: #9ca3af;
+      font-size: 1.1rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    #time-left {
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(3.5rem, 12vw, 5.5rem);
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #6ee7b7;
+    }
+
+    .timer-controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .timer-controls button {
+      min-width: 120px;
+      min-height: 48px;
+      padding: 12px 18px;
+      font-size: 1rem;
+    }
+
+    #start_stop {
+      background: #10b981;
+      color: #052e24;
+    }
+
+    #start_stop:hover {
+      background: #34d399;
+    }
+
+    #reset {
+      background: #374151;
+      color: #fff;
+    }
+
+    #reset:hover {
+      background: #4b5563;
+    }
+
+    .footer {
+      margin-top: 24px;
+      color: #6b7280;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 440px) {
+      .clock {
+        padding: 20px 14px;
+      }
+
+      .length-controls {
+        gap: 10px;
+      }
+
+      .length-box {
+        padding: 16px 8px;
+      }
+
+      .adjuster {
+        gap: 10px;
+      }
+
+      .adjuster button {
+        width: 36px;
+        height: 36px;
+      }
+
+      .timer-controls button {
+        min-width: 0;
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+
+      return (
+        String(minutes).padStart(2, "0") +
+        ":" +
+        String(remainingSeconds).padStart(2, "0")
+      );
+    }
+
+    function Clock() {
+      const [breakLength, setBreakLength] = useState(5);
+      const [sessionLength, setSessionLength] = useState(25);
+      const [timeLeft, setTimeLeft] = useState(25 * 60);
+      const [timerLabel, setTimerLabel] = useState("Session");
+      const [isRunning, setIsRunning] = useState(false);
+
+      const intervalRef = useRef(null);
+      const beepRef = useRef(null);
+      const deadlineRef = useRef(null);
+      const timeLeftRef = useRef(25 * 60);
+
+      function updateTime(seconds) {
+        timeLeftRef.current = seconds;
+        setTimeLeft(seconds);
+      }
+
+      function stopInterval() {
+        if (intervalRef.current !== null) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }
+
+      function playBeep() {
+        const audio = beepRef.current;
+        if (!audio) return;
+
+        audio.currentTime = 0;
+        const promise = audio.play();
+
+        if (promise && typeof promise.catch === "function") {
+          promise.catch(() => {});
+        }
+      }
+
+      function stopBeep() {
+        const audio = beepRef.current;
+        if (!audio) return;
+
+        audio.pause();
+        audio.currentTime = 0;
+      }
+
+      function reset() {
+        stopInterval();
+        stopBeep();
+
+        setBreakLength(5);
+        setSessionLength(25);
+        setTimerLabel("Session");
+        setIsRunning(false);
+        deadlineRef.current = null;
+        updateTime(25 * 60);
+      }
+
+      function changeLength(type, amount) {
+        if (isRunning) return;
+
+        if (type === "break") {
+          setBreakLength((current) => {
+            const next = current + amount;
+            return next < 1 || next > 60 ? current : next;
+          });
+        } else {
+          setSessionLength((current) => {
+            const next = current + amount;
+
+            if (next < 1 || next > 60) return current;
+
+            if (timerLabel === "Session") {
+              updateTime(next * 60);
+            }
+
+            return next;
+          });
+        }
+      }
+
+      function startTimer() {
+        if (isRunning) {
+          const remaining = Math.max(
+            0,
+            Math.ceil((deadlineRef.current - Date.now()) / 1000)
+          );
+
+          updateTime(remaining);
+          stopInterval();
+          setIsRunning(false);
+          return;
+        }
+
+        setIsRunning(true);
+        deadlineRef.current = Date.now() + timeLeftRef.current * 1000;
+
+        intervalRef.current = setInterval(() => {
+          const remaining = Math.max(
+            0,
+            Math.ceil((deadlineRef.current - Date.now()) / 1000)
+          );
+
+          updateTime(remaining);
+
+          if (remaining <= 0) {
+            stopInterval();
+            playBeep();
+
+            if (timerLabel === "Session") {
+              setTimerLabel("Break");
+              updateTime(breakLength * 60);
+            } else {
+              setTimerLabel("Session");
+              updateTime(sessionLength * 60);
+            }
+
+            deadlineRef.current =
+              Date.now() +
+              (timerLabel === "Session"
+                ? breakLength
+                : sessionLength) *
+                60 *
+                1000;
+
+            intervalRef.current = setInterval(() => {
+              const nextRemaining = Math.max(
+                0,
+                Math.ceil((deadlineRef.current - Date.now()) / 1000)
+              );
+
+              updateTime(nextRemaining);
+
+              if (nextRemaining <= 0) {
+                stopInterval();
+                playBeep();
+
+                setTimerLabel((currentLabel) => {
+                  const nextLabel =
+                    currentLabel === "Session" ? "Break" : "Session";
+
+                  const nextMinutes =
+                    nextLabel === "Break" ? breakLength : sessionLength;
+
+                  updateTime(nextMinutes * 60);
+                  deadlineRef.current =
+                    Date.now() + nextMinutes * 60 * 1000;
+
+                  return nextLabel;
+                });
+
+                // Continue counting after each period.
+                intervalRef.current = setInterval(() => {
+                  const tick = () => {
+                    const left = Math.max(
+                      0,
+                      Math.ceil((deadlineRef.current - Date.now()) / 1000)
+                    );
+                    updateTime(left);
+
+                    if (left <= 0) {
+                      stopInterval();
+                      playBeep();
+                      setTimerLabel((label) => {
+                        const next = label === "Session" ? "Break" : "Session";
+                        const minutes =
+                          next === "Break" ? breakLength : sessionLength;
+
+                        updateTime(minutes * 60);
+                        deadlineRef.current = Date.now() + minutes * 60000;
+                        return next;
+                      });
+                      // Restart a single interval for subsequent cycles.
+                      startNextCycle();
+                    }
+                  };
+
+                  tick();
+                }, 200);
+              }
+            }, 200);
+          }
+        }, 200);
+      }
+
+      function startNextCycle() {
+        stopInterval();
+
+        intervalRef.current = setInterval(() => {
+          const remaining = Math.max(
+            0,
+            Math.ceil((deadlineRef.current - Date.now()) / 1000)
+          );
+
+          updateTime(remaining);
+
+          if (remaining <= 0) {
+            stopInterval();
+            playBeep();
+
+            setTimerLabel((currentLabel) => {
+              const nextLabel =
+                currentLabel === "Session" ? "Break" : "Session";
+              const nextMinutes =
+                nextLabel === "Break" ? breakLength : sessionLength;
+
+              updateTime(nextMinutes * 60);
+              deadlineRef.current = Date.now() + nextMinutes * 60000;
+              return nextLabel;
+            });
+
+            startNextCycle();
+          }
+        }, 200);
+      }
+
+      useEffect(() => {
+        return () => stopInterval();
+      }, []);
+
+      return (
+        <main className="clock">
+          <h1>25 + 5 Clock</h1>
+          <p className="subtitle">Focus better. Rest smarter.</p>
+
+          <div className="length-controls">
+            <section className="length-box">
+              <h2 id="break-label">Break Length</h2>
+              <div className="adjuster">
+                <button
+                  id="break-decrement"
+                  aria-label="Decrease break length"
+                  onClick={() => changeLength("break", -1)}
+                  disabled={isRunning}
+                >
+                  −
+                </button>
+
+                <span id="break-length" className="length-value">
+                  {breakLength}
+                </span>
+
+                <button
+                  id="break-increment"
+                  aria-label="Increase break length"
+                  onClick={() => changeLength("break", 1)}
+                  disabled={isRunning}
+                >
+                  +
+                </button>
+              </div>
+            </section>
+
+            <section className="length-box">
+              <h2 id="session-label">Session Length</h2>
+              <div className="adjuster">
+                <button
+                  id="session-decrement"
+                  aria-label="Decrease session length"
+                  onClick={() => changeLength("session", -1)}
+                  disabled={isRunning}
+                >
+                  −
+                </button>
+
+                <span id="session-length" className="length-value">
+                  {sessionLength}
+                </span>
+
+                <button
+                  id="session-increment"
+                  aria-label="Increase session length"
+                  onClick={() => changeLength("session", 1)}
+                  disabled={isRunning}
+                >
+                  +
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <section className="timer">
+            <div id="timer-label">{timerLabel}</div>
+            <div id="time-left">{formatTime(timeLeft)}</div>
+          </section>
+
+          <div className="timer-controls">
+            <button id="start_stop" onClick={startTimer}>
+              {isRunning ? "❚❚ Pause" : "▶ Start"}
+            </button>
+
+            <button id="reset" onClick={reset}>
+              ↻ Reset
+            </button>
+          </div>
+
+          <div className="footer">POMODORO TIMER · STAY FOCUSED</div>
+
+          <audio
+            id="beep"
+            ref={beepRef}
+            preload="auto"
+            src="https://cdn.freecodecamp.org/testable-projects-fcc/audio/BeepSound.wav"
+          />
+        </main>
+      );
+    }
+
+    ReactDOM.render(<Clock />, document.getElementById("root"));
+  </script>
+</body>
+</html>
